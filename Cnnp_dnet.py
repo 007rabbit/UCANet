@@ -54,7 +54,7 @@ class Cnnp(nn.Module):
             nn.Conv2d(in_channels=96, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
         )
-        '''2个resnet模块'''
+
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
@@ -68,7 +68,7 @@ class Cnnp(nn.Module):
         )
         self.relu2 = nn.ReLU(inplace=True)
 
-        '''输出'''
+
         self.p3 = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
@@ -82,7 +82,6 @@ class Cnnp(nn.Module):
         up2 = self.up2(torch.cat((p1, dw2), dim=1))
         up1 = self.up1(torch.cat((up2, dw1), dim=1))
         up0 = self.up0(torch.cat((up1, p0), dim=1))
-        '''resnet模块'''
         out1 = self.conv1(up0)
         out2 = self.relu1(out1+up0)
         out3 = self.conv2(out2)
