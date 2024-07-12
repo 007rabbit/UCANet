@@ -6,10 +6,9 @@ import numpy as np
 from torchvision import datasets, transforms
 import argparse
 import torch.utils.data
-import torch.nn.functional as F  # 小写变量导入为非小写
+import torch.nn.functional as F  
 import time
 import random
-'''0,255像素范围内训练'''
 
 parser = argparse.ArgumentParser(description='train UCANet')
 parser.add_argument('--batch-size', type=int, default=8, metavar='N',
@@ -29,28 +28,27 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 args = parser.parse_args()
-args.cuda = not args.no_cuda and torch.cuda.is_available()  # 判断GPU是否可用-----is_available
-torch.manual_seed(args.seed)  # 设置cpu随机种子,生成随机数
+args.cuda = not args.no_cuda and torch.cuda.is_available()  
+torch.manual_seed(args.seed)  
 if args.cuda:
-    torch.cuda.manual_seed(args.seed)  # 设置gpu随机种子
+    torch.cuda.manual_seed(args.seed)  
 else:
     args.gpu = None
-kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}  # pin_memory拷贝数据到GPU,num_workers设置工作进程
+kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}  
 def custom_rotation(img):
-    # 生成90度的倍数的旋转角度
     angle = random.randint(0, 3) * 90
     return transforms.functional.rotate(img, angle)
-'''训练过程'''
-train_path2 = r"D:\haiyang\datasets\BOWS_512_512_3000"  # 设置路径
+
+train_path2 = r"D:\haiyang\datasets\BOWS_512_512_3000" 
 train_data = datasets.ImageFolder(train_path2, transform=transforms.Compose([
     transforms.Grayscale(),
     transforms.Lambda(custom_rotation),
-    transforms.ToTensor(),  # transforms.ToTensor()将像素值从整数范围[0, 255]转换为浮点数范围[0, 1]
+    transforms.ToTensor(), 
 ]))
 
 train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, **kwargs)
-'''验证集'''
-valid_path2 = r"D:\haiyang\datasets\ceshitu"  # 设置路径
+
+valid_path2 = r"D:\haiyang\datasets\ceshitu"  
 valid_data = datasets.ImageFolder(valid_path2, transform=transforms.Compose([
     transforms.Grayscale(),
     transforms.Resize((512,512)),
@@ -61,13 +59,12 @@ model = Cnnp_dnet.Cnnp()
 if args.cuda:
     model.cuda()
 optimer = optim.AdamW(model.parameters(), lr=args.lr, betas=args.betas, eps=1e-08,
-                     weight_decay=args.weight_decay, amsgrad=False)  # 选用Adam优化器
+                     weight_decay=args.weight_decay, amsgrad=False)  
 
 
 def pre_img(img,mask, flag):
     device = img.device
     img1 = img.clone().to(device)
-    '''创建索引分量'''
     I1 = torch.zeros(img.shape, device=device)
     I2 = torch.zeros(img.shape, device=device)
     I1[:, :, :, :] = img1[:, :, :, :]*(mask == flag)
@@ -86,22 +83,21 @@ def result_deal(img,mask, flag):
 def train(epoch):
     lr_train = (optimer.state_dict()['param_groups'][0]['lr'])
     print('lr_train=', lr_train)
-    model.train()  # 激活训练模型
-    '''使用卷积核进行预处理'''
+    model.train()  
     for idx, (data, lable) in enumerate(train_loader):
         flag = random.randint(1, 4)
         x_, y_ = np.random.randint(0, 384, size=2)
         data = ((data*255)[:, :, x_:x_ + 128, y_:y_ + 128]).cuda()
         mask = category[x_:x_ + 128, y_:y_ + 128].cuda()
         i1, img = pre_img(data,mask, flag)
-        img.requires_grad = True  # 张量自动求梯度，替换掉Variable()用法
+        img.requires_grad = True 
         data2 = model(img)
-        pre_ = result_deal(data2,mask, flag)  # 返回I1的预测值
+        pre_ = result_deal(data2,mask, flag) 
         loss = F.mse_loss(pre_, i1)
-        optimer.zero_grad()  # 全局梯度为0
+        optimer.zero_grad() 
         loss.backward()
         optimer.step()
-        '''反向传播'''
+
         if (idx + 1) % 50 == 0:
             print('Train Epoch: {}   [{}/{} ({:.0f}%)], loss={}'.format(
                 epoch, (idx + 1) * len(data), len(train_loader.dataset),
@@ -114,11 +110,10 @@ def valid():
     for idx, (data, label) in enumerate(valid_loader):
         data = (data*255).cuda()
         flag = random.randint(1, 4)
-        """0点1叉"""
         with torch.no_grad():
             i1, img = pre_img(data,category, flag)
             data2 = model(img)
-            pre_ = result_deal(data2,category, flag)  # 返回I1的预测值
+            pre_ = result_deal(data2,category, flag) 
             loss = F.mse_loss(pre_, i1)
         loss0 += loss.item()
     print("avg-valid-loss=", loss0/(idx+1))
@@ -134,10 +129,8 @@ import pandas as pd
 if __name__ == '__main__':
     current_datetime = datetime.datetime.now()
     formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-    print('程序启动******', "日期和时间：", formatted_datetime)
     t3 = time.time()
     lo = []
-    print('当前学习率',optimer.param_groups[0]['lr'])
     for epoch in range(args.epochs):
         if epoch%400==0 :optimer.param_groups[0]['lr'] = optimer.param_groups[0]['lr']*0.5
         t1 = time.time()
@@ -147,16 +140,15 @@ if __name__ == '__main__':
         lo.append({'epoch':epoch,'train-loss':loss1,'test-loss':loss2})
         df = pd.DataFrame(lo)
         df.to_excel('train-loss.xlsx', index=False)
-        '''loss保存，参数保存'''
         if epoch>400:
             state = {'network': model.state_dict(), 'optimizer_learn_rate': optimer.param_groups[0]['lr']}
             torch.save(state, './train_param/' + str(epoch) + '_model.pth')
         t2 = time.time()
-        print('total time = ', (t2-t1)//60, '分钟', (t2-t1) % 60, '秒')
+        print('total time = ', (t2-t1)//60, 'm', (t2-t1) % 60, 's')
     t4 = time.time()
-    print('total time = ', (t4-t3)//3600, '小时', ((t4-t3) % 3600)//60, '分钟', (t4-t3) % 60, '秒')
+    print('total time = ', (t4-t3)//3600, 'h', ((t4-t3) % 3600)//60, 'm', (t4-t3) % 60, 's')
     current_datetime = datetime.datetime.now()
     formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-    print("当前日期和时间：", formatted_datetime)
+    print("time：", formatted_datetime)
 
 
