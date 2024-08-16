@@ -13,7 +13,7 @@ import random
 parser = argparse.ArgumentParser(description='train UCANet')
 parser.add_argument('--batch-size', type=int, default=8, metavar='N',
                     help='input batch size for trainning')
-parser.add_argument('--epochs', type=int, default=1500, metavar='N',
+parser.add_argument('--epochs', type=int, default=2000, metavar='N',
                     help='number of epochs to train ')
 parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
                     help='learning rate of train')
